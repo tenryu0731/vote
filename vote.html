@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>打ち上げ会場 投票</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>打ち上げ会場 投票フォーム</h1>
+
+  <!-- 投票済み表示 -->
+  <div id="votedMessage" class="hidden">
+    <p>すでに投票済みです。ありがとうございました！</p>
+  </div>
+
+  <!-- フォーム本体 -->
+  <div id="voteForm">
+    <form id="form">
+      <p>行きたい会場を1つ選んでください：</p>
+      <label><input type="radio" name="venue" value="居酒屋A"> 居酒屋A（渋谷）</label><br>
+      <label><input type="radio" name="venue" value="カフェB"> カフェB（池袋）</label><br>
+      <label><input type="radio" name="venue" value="バーベキューC"> バーベキューC（代々木公園）</label><br><br>
+
+      <label>新しい会場の提案（任意）：<br>
+        <input type="text" name="customVenue">
+      </label><br><br>
+
+      <button type="submit">投票する</button>
+    </form>
+  </div>
+
+  <!-- 投票人数表示（ローカル） -->
+  <div id="voteCountBox">
+    <p>投票済み人数（このブラウザ）: <span id="voteCount">0</span>人</p>
+  </div>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxe_g-_KsGOeVN9gaw56P7GAoY31q6qRnDtblxQal0Pm2g7M1i977h0aRrRqAhGSW1gbA/exec";  // ←ここにGASのURLを貼る
+
+    const STORAGE_KEY_VOTED = "launchPartyVoted";
+    const STORAGE_KEY_COUNT = "launchPartyVoteCount";
+
+    // 投票済みか判定
+    function hasVoted() {
+      return localStorage.getItem(STORAGE_KEY_VOTED) === "true";
+    }
+
+    // 投票済みに設定（ローカル）
+    function markAsVoted() {
+      localStorage.setItem(STORAGE_KEY_VOTED, "true");
+      let count = parseInt(localStorage.getItem(STORAGE_KEY_COUNT)) || 0;
+      count++;
+      localStorage.setItem(STORAGE_KEY_COUNT, count);
+    }
+
+    // 投票人数表示（ローカル）
+    function updateVoteCountDisplay() {
+      const count = localStorage.getItem(STORAGE_KEY_COUNT) || 0;
+      document.getElementById("voteCount").textContent = count;
+    }
+
+    // ロード時の処理
+    window.onload = () => {
+      if (hasVoted()) {
+        document.getElementById("votedMessage").classList.remove("hidden");
+        document.getElementById("voteForm").classList.add("hidden");
+      }
+
+      updateVoteCountDisplay();
+
+      document.getElementById("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const venue = form.venue.value;
+        const custom = form.customVenue.value;
+
+        if (!venue && !custom) {
+          alert("候補を選ぶか、新しい会場を提案してください。");
+          return;
+        }
+
+        const payload = {
+          venue: venue,
+          custom: custom
+        };
+
+        fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { "Content-Type": "application/json" },
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === "success") {
+            alert("投票ありがとうございました！");
+            markAsVoted();
+            document.getElementById("votedMessage").classList.remove("hidden");
+            document.getElementById("voteForm").classList.add("hidden");
+            updateVoteCountDisplay();
+          } else {
+            alert("投票に失敗しました。");
+          }
+        })
+        .catch(err => {
+          alert("送信エラーが発生しました。");
+          console.error(err);
+        });
+      });
+    };
+  </script>
+</body>
+</html>
